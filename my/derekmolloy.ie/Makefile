@@ -6,10 +6,10 @@
 #что-то скомпилировал но на плате получил секфаулит - не в этом дело
 #  скомп. на прямую запускается
 
-obj-m += ofd.o ebbchar.o
+obj-m += ofd.o ebbchar.o gpio_test.o
 
 
-RPI_ROOT=/home/zaqwes/emb-rpi/buildroot-2014.11/output
+RPI_ROOT=/mnt/emb/emb-rpi/output
 CCPREFIX=${RPI_ROOT}/host/usr/bin/arm-buildroot-linux-uclibcgnueabi-
 KERNEL_SRC=${RPI_ROOT}/build/linux-c256eb9968c8997dce47350d2075e42f1b3991d3
 CC=${CCPREFIX}gcc
