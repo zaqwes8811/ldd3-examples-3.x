@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/io.h> 
 #include <linux/ioport.h>
 #include <linux/gpio.h>                 // Required for the GPIO functions
@@ -26,7 +27,7 @@ MODULE_AUTHOR("Derek Molloy");
 MODULE_DESCRIPTION("A Button/LED test driver for the BBB");
 MODULE_VERSION("0.1");
 
-static const int gpioButton = 18;
+static const int c_gpio_button = 18;
 
 #define DCHECK( success ) ;
 
@@ -39,9 +40,9 @@ static struct bcm2835_peripheral
     volatile u32 *addr;  // 4 байта?
 } gpio;
 
-#define PULL_ENA  0x94
-#define PULL_CLK0 0x98
-#define PULL_CLK1 0x9C
+#define PULL_ENA  (0x94/4)
+#define PULL_CLK0 (0x98/4)
+#define PULL_CLK1 (0x9C/4)
 
 // 	int s = (success); \
 // 	if( s ){ \
@@ -57,6 +58,16 @@ static struct bcm2835_peripheral
 
 // enable sysfs 
 //   http://raspberrypi.stackexchange.com/questions/24092/kernel-config-necessary-options
+
+void* gpio_ = NULL;
+static void setGpioPullUps(int pullUps) {
+    // *(gpio_ + 37) = 0x02;
+    // udelay(10);
+    // *(gpio_ + 38) = pullUps;
+    // udelay(10);
+    // *(gpio_ + 37) = 0x00;
+    // *(gpio_ + 38) = 0x00;
+}
 
 struct resource * mem;
 static int __init ebbgpio_init(void)
@@ -78,24 +89,38 @@ static int __init ebbgpio_init(void)
 
     gpio.addr = (volatile u32*)gpio.map;
 
-	int status = 0;
-	DCHECK( !gpio_is_valid( gpioButton ) );  // fixme: wrong
-	status = gpio_request( gpioButton, "sysfs" );
-	if( status )
-		return status;
+    // pull up
+    *(gpio.addr + PULL_ENA) =  0x01 << 1; // enable pull up
+    udelay(200);
 
-	// status = gpio_direction_input( gpioButton );
-	// if( status )
-	// 	return status;
-
-	// DCHECK( gpio_set_debounce(gpioButton, 200) );
+	*(gpio.addr + PULL_CLK0) = 0x01 << 18;
+	// printk(KERN_INFO "gpio_test: mem: %x\n", gpio.addr );
 	
-	// int status = gpio_export(gpioButton, false);
+    udelay(200);
+    *(gpio.addr + PULL_ENA) = 0x00;
+    *(gpio.addr + PULL_CLK0) = 0x00;
+
+    //
+	int status = 0;
+	DCHECK( !gpio_is_valid( c_gpio_button ) );  // fixme: wrong
+	status = gpio_request( c_gpio_button, "sysfs" );
+	if( status ){
+		return status;
+	}
+
+	status = gpio_direction_input( c_gpio_button );
+	if( status ){
+		return status;
+	}
+
+	// DCHECK( gpio_set_debounce(c_gpio_button, 200) );
+	// int status = gpio_export(c_gpio_button, false);
 	// if( status ){
 	// 	return status;
 	// }
 
-	// printk(KERN_INFO "GPIO_TEST: The button state is currently: %d\n", gpio_get_value(gpioButton));
+	printk(KERN_INFO "gpio_test: The button state is currently: %x\n", 
+		gpio_get_value(c_gpio_button) );
 	
 	printk(KERN_INFO "gpio_test: init done\n");
 	return 0;
@@ -103,8 +128,8 @@ static int __init ebbgpio_init(void)
 
 static void __exit ebbgpio_exit(void) 
 {
-	// gpio_unexport( gpioButton );
-	gpio_free( gpioButton);
+	// gpio_unexport( c_gpio_button );
+	gpio_free( c_gpio_button);
 
 	iounmap(gpio.map);
 

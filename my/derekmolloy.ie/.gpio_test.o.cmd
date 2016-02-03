@@ -380,6 +380,8 @@ deps_/home/zaqwes/work/ldd3-examples-3.x/my/derekmolloy.ie/gpio_test.o := \
     $(wildcard include/config/have/mod/arch/specific.h) \
     $(wildcard include/config/modules/use/elf/rel.h) \
     $(wildcard include/config/modules/use/elf/rela.h) \
+  include/linux/delay.h \
+  /mnt/emb/emb-rpi/output/build/linux-c256eb9968c8997dce47350d2075e42f1b3991d3/arch/arm/include/asm/delay.h \
   include/linux/io.h \
     $(wildcard include/config/has/ioport.h) \
   /mnt/emb/emb-rpi/output/build/linux-c256eb9968c8997dce47350d2075e42f1b3991d3/arch/arm/include/asm/io.h \
