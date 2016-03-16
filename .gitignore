@@ -4,3 +4,6 @@
 *.ko
 test
 *.order
+*.cmd
+*.mod
+*.tmp_versions
