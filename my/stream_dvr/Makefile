@@ -5,8 +5,8 @@
 # Comment/uncomment the following line to disable/enable debugging
 #DEBUG = y
 
-all:
-	echo ""
+#all:
+#	echo
 
 
 # Add your debugging flag (or not) to EXTRA_CFLAGS
@@ -36,3 +36,10 @@ endif
 
 clean:
 	rm -rf *.o *~ .tmp_versions Module.symvers modules.order .*.cmd *.ko *.mod.c
+
+all_app:
+	gcc pecho.c -o pecho.out
+#	gcc pcat.c -o pcat.out
+	
+	
+	
