@@ -300,7 +300,7 @@ struct scull_qset *scull_follow(struct scull_dev *dev, int n)
  */
 
 ssize_t scull_read(struct file *filp, char __user *buf, size_t count,
-                loff_t *f_pos)
+                loff_t *r_f_pos)
 {
 	struct scull_dev *dev = filp->private_data; 
 	struct scull_qset *dptr;	/* the first listitem */
@@ -311,15 +311,16 @@ ssize_t scull_read(struct file *filp, char __user *buf, size_t count,
 
 	if (mutex_lock_interruptible(&dev->mutex))
 		return -ERESTARTSYS;
-	if (*f_pos >= dev->size)
+	if (*r_f_pos >= dev->size)
 		goto out;
-	if (*f_pos + count > dev->size)
-		count = dev->size - *f_pos;
+	if (*r_f_pos + count > dev->size)
+		count = dev->size - *r_f_pos;
 
 	/* find listitem, qset index, and offset in the quantum */
-	item = (long)*f_pos / itemsize;
-	rest = (long)*f_pos % itemsize;
-	s_pos = rest / quantum; q_pos = rest % quantum;
+	item = (long)*r_f_pos / itemsize;
+	rest = (long)*r_f_pos % itemsize;
+	s_pos = rest / quantum;
+	q_pos = rest % quantum;
 
 	/* follow the list up to the right position (defined elsewhere) */
 	dptr = scull_follow(dev, item);
@@ -335,7 +336,7 @@ ssize_t scull_read(struct file *filp, char __user *buf, size_t count,
 		retval = -EFAULT;
 		goto out;
 	}
-	*f_pos += count;
+	*r_f_pos += count;  // !!! change argument ptr !!!
 	retval = count;
 
   out:
@@ -371,11 +372,15 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count,
 			goto out;
 		memset(dptr->data, 0, qset * sizeof(char *));
 	}
+
+	///
 	if (!dptr->data[s_pos]) {
 		dptr->data[s_pos] = kmalloc(quantum, GFP_KERNEL);
 		if (!dptr->data[s_pos])
 			goto out;
 	}
+	///
+
 	/* write only up to the end of this quantum */
 	if (count > quantum - q_pos)
 		count = quantum - q_pos;

@@ -37,9 +37,13 @@ endif
 clean:
 	rm -rf *.o *~ .tmp_versions Module.symvers modules.order .*.cmd *.ko *.mod.c
 
-all_app:
-	gcc pecho.c -o pecho.out
-#	gcc pcat.c -o pcat.out
+app:
+	gcc main.c
+	sudo ./a.out
+	
+reload_dvr:
+	sudo rmmod stream_dvr
+	sudo insmod stream_dvr.ko
 	
 	
 	
