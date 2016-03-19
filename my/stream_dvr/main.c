@@ -73,12 +73,7 @@ int main( int argc, char *argv[] )
 			// приозошло событие на одном или более дескрипторов
 		}
 
-//		int res = write( dfd, data, strlen( data ) );
-		continue;
-
-		int res = 0;
-		fprintf( stdout, "write %d bytes: ", res );
-
+		int res = write( dfd, data, strlen( data ) );
 		if( res < 0 ){
 		   ERR( "write error: %m\n" );
 		}
@@ -88,7 +83,8 @@ int main( int argc, char *argv[] )
 		  }
 		}
 		else{
-		   fprintf( stdout, "%s\n", data );
+			fprintf( stdout, "write %d bytes: ", res );
+			fprintf( stdout, "%s\n", data );
 		}
 	}
 

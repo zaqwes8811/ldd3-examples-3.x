@@ -17,9 +17,27 @@
 и сигнализирует когда она закончена
 http://www.ibm.com/developerworks/library/l-tasklets/
 
+http://stackoverflow.com/questions/23094444/difference-b-w-kthread-and-work-queues
+http://stackoverflow.com/questions/2147299/when-to-use-kernel-threads-vs-workqueues-in-the-linux-kernel
+
 http://ecee.colorado.edu/~siewerts/extra/code/example_code_archive/a102_code/EXAMPLES/Cooperstein-Drivers/s_20/lab4_all_thread.c
 tasklet? workqueue?
 http://rounder.googlecode.com/svn/trunk/ldd/hello/hello_kthread/hello_kthread.c
+это исполняется на разных ядрах?
+http://kukuruku.co/hub/nix/multitasking-in-the-linux-kernel-workqueues
+
+contexts:
+http://stackoverflow.com/questions/9389688/in-what-context-kernel-thread-runs-in-linux
+https://www.quora.com/What-is-a-process-context-when-talking-about-IRQ-registration
+
+scheduling:
+http://viewer.media.bitpipe.com/1090331926_980/1182181756_632/a3.pdf
+http://kukuruku.co/hub/opensource/multitasking-management-in-the-operating-system-kernel
+https://lwn.net/Articles/392783/
+
+data queue and other kernel data structs:
+http://www.slideshare.net/assinha/linux-kernel-data-structure
+http://stackoverflow.com/questions/389582/queues-in-the-linux-kernel
 */
 
 #include <linux/module.h>
@@ -36,6 +54,8 @@ http://rounder.googlecode.com/svn/trunk/ldd/hello/hello_kthread/hello_kthread.c
 #include <linux/sched.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -57,6 +77,28 @@ static unsigned int poll( struct file *file,
 		struct poll_table_struct *poll_table_ptr );
 
 ////////////////////////////////////////////////
+
+typedef struct {
+  struct work_struct my_work;
+  int    id;
+} spec_work_struct_t;
+
+// fixme: result struct
+// fixme: как сохранить результат пока его не считают?
+//   все равно какое-то хранишище нужно
+
+spec_work_struct_t *work, *work2;
+
+static void wq_func( struct work_struct *work)
+{
+	spec_work_struct_t *w = (spec_work_struct_t *)work;
+
+	printk( "my_work.x %d\n", w->id );
+
+	kfree( (void *)work );
+
+	return;
+}
 
 static int major_n_;
 static struct class* sdvr_cls_ = NULL;
@@ -147,6 +189,13 @@ static ssize_t write( struct file *file,
    // set offset to start
    atomic_set( &storage_ptr_->read_offset, 0 );
 
+	// Tasklet test
+//	work = (spec_work_struct_t *)kmalloc(sizeof(spec_work_struct_t),
+//			GFP_KERNEL);
+//	INIT_WORK( (struct work_struct *)work, wq_func );
+//	work->id = 1;
+//	ret = queue_work(
+//			system_unbound_wq, (struct work_struct *)work );
 //   wake_up_interruptible( &q_wait_ );
    return len;
 }
@@ -156,6 +205,7 @@ static ssize_t write( struct file *file,
 static unsigned int poll( struct file *file,
 		struct poll_table_struct *poll_table_ptr )
 {
+	int flag;
 	// call for on wait queue
 	// fixme: как возвращается в залоченное состояние?
 	// http://stackoverflow.com/questions/30234496/why-do-we-need-to-call-poll-wait-in-poll
@@ -173,7 +223,7 @@ static unsigned int poll( struct file *file,
 
 	// "after you wake up, and you must check to
 	// ensure that the condition you were waiting for is, indeed, true"
-	int flag = 0;
+	flag = 0;
 //	if( 0 ){
 //		flag = POLLOUT | POLLWRNORM;
 //	}
@@ -190,6 +240,7 @@ static unsigned int poll( struct file *file,
 
 static int stream_dvr_init(void)
 {
+	int ret = -1;
 	major_n_ = register_chrdev(0, DEVICE_NAME, &fops_);
 	if( major_n_ < 0 ){
 		return major_n_;
@@ -211,7 +262,6 @@ static int stream_dvr_init(void)
 	}
 
 	printk( KERN_INFO "StreamDvr: loaded" );
-
 	return 0;
 }
 
