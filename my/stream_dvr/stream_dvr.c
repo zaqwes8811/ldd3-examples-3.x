@@ -40,6 +40,8 @@ http://www.slideshare.net/assinha/linux-kernel-data-structure
 http://stackoverflow.com/questions/389582/queues-in-the-linux-kernel
 */
 
+#include "user_kern.h"
+
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -87,15 +89,15 @@ typedef struct {
 // fixme: как сохранить результат пока его не считают?
 //   все равно какое-то хранишище нужно
 
-spec_work_struct_t *work, *work2;
-
 static void wq_func( struct work_struct *work)
 {
 	spec_work_struct_t *w = (spec_work_struct_t *)work;
 
 	printk( "my_work.x %d\n", w->id );
 
-	kfree( (void *)work );
+	kfree( (void *)work );  // fixme: it's right size?
+
+	//   wake_up_interruptible( &q_wait_ );
 
 	return;
 }
@@ -122,13 +124,13 @@ struct storage_t
 	char buf[ LEN_MSG + 2 ];
 };
 
-static struct storage_t storage_ =
-{
-   .read_offset = ATOMIC_INIT( 0 ),
-   .buf = "",
-};
+//static struct storage_t storage_ =
+//{
+//   .read_offset = ATOMIC_INIT( 0 ),
+//   .buf = "",
+//};
 
-static struct storage_t *storage_ptr_ = &storage_;
+//static struct storage_t *storage_ptr_ = &storage_;
 
 
 // "A wait queue is just what it sounds like: a list of processes,
@@ -172,32 +174,29 @@ static DECLARE_WAIT_QUEUE_HEAD( q_wait_ );
 static ssize_t write( struct file *file,
 		const char *buf, size_t count, loff_t *ppos )
 {
-   int res = 0;
-   int len = LEN_MSG;
-   if( count < LEN_MSG ){
-	   len = count;
-   }
+	int res = 0;
+	int target_size = 0;
+	struct img_hndl_t h;
+	spec_work_struct_t *work;
 
-   res = copy_from_user( storage_ptr_->buf, (void*)buf, len );
+	target_size = sizeof( struct img_hndl_t );
+	if( count != target_size ){
+		return res;
+	}
 
-   storage_ptr_->buf[ len ] = '\0';
-   if( '\n' != storage_ptr_->buf[ len-1 ] ){
-      strcat( storage_ptr_->buf, "\n" );
-   }
+	res = copy_from_user( (void*)&h, (void*)buf, count );
+	if( res != 0 ){
+		return res;
+	}
 
-   // read enable
-   // set offset to start
-   atomic_set( &storage_ptr_->read_offset, 0 );
+	work = (spec_work_struct_t *)kmalloc(sizeof(spec_work_struct_t),
+			GFP_KERNEL);
+	INIT_WORK( (struct work_struct *)work, wq_func );
+	work->id = h.id;
+	res = queue_work(
+			system_unbound_wq, (struct work_struct *)work );
 
-	// Tasklet test
-//	work = (spec_work_struct_t *)kmalloc(sizeof(spec_work_struct_t),
-//			GFP_KERNEL);
-//	INIT_WORK( (struct work_struct *)work, wq_func );
-//	work->id = 1;
-//	ret = queue_work(
-//			system_unbound_wq, (struct work_struct *)work );
-//   wake_up_interruptible( &q_wait_ );
-   return len;
+	return target_size;
 }
 
 //- Register any wait queues used by the driver with the poll system.
@@ -219,14 +218,14 @@ static unsigned int poll( struct file *file,
 	//
 	// fixme: как происходит чтение а не запись?
 	// fixme: что еще заставляет его пробудится?
-	poll_wait( file, &q_wait_, poll_table_ptr );
+//	poll_wait( file, &q_wait_, poll_table_ptr );
 
 	// "after you wake up, and you must check to
 	// ensure that the condition you were waiting for is, indeed, true"
 	flag = 0;
-//	if( 0 ){
-//		flag = POLLOUT | POLLWRNORM;
-//	}
+	if( 1 ){
+		flag = POLLOUT | POLLWRNORM;
+	}
 
    // flags for read
 //   if( atomic_read( &dev_ptr_->read_offset ) <= strlen( dev_ptr_->buf ) ) {
@@ -240,7 +239,8 @@ static unsigned int poll( struct file *file,
 
 static int stream_dvr_init(void)
 {
-	int ret = -1;
+	// fixme: !! make driver only one openned
+//	int ret = -1;
 	major_n_ = register_chrdev(0, DEVICE_NAME, &fops_);
 	if( major_n_ < 0 ){
 		return major_n_;

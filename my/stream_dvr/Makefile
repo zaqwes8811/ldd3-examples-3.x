@@ -36,9 +36,10 @@ endif
 
 clean:
 	rm -rf *.o *~ .tmp_versions Module.symvers modules.order .*.cmd *.ko *.mod.c
-
+	rm *.out
+	
 app:
-	gcc main.c
+	g++ -std=c++11 main.cc
 	sudo ./a.out
 	
 reload_dvr:
